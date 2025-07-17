@@ -713,29 +713,37 @@ def _parse_args(args):
     )
     parser.add_argument('type', nargs='+', help='a type to search')
     args = parser.parse_args(args)
-    return args, parser.format_help()
+    return args
 
 
 def _main(args=None):
     """Run the mimetypes command-line interface and return a text to print."""
     import sys
 
-    args, help_text = _parse_args(args)
+    args = _parse_args(args)
+    lenient = args.lenient
 
-    if args.extension:
-        for gtype in args.type:
-            guess = guess_extension(gtype, not args.lenient)
-            if guess:
-                return str(guess)
-            sys.exit(f"error: unknown type {gtype}")
-    else:
-        for gtype in args.type:
-            guess, encoding = guess_type(gtype, not args.lenient)
-            if guess:
-                return f"type: {guess} encoding: {encoding}"
-            sys.exit(f"error: media type unknown for {gtype}")
-    return help_text
+    def guess_ext_or_raise(sx):
+        guess = guess_extension(sx, not lenient)
+        if guess:
+            return str(guess)
+        raise ValueError(f"error: unknown type {sx}")
+    
+    def guess_type_or_raise(sx):
+        guess, encoding = guess_type(sx, not lenient)
+        if guess:
+            return f"type: {guess} encoding: {encoding}"
+        raise ValueError(f"error: media type unknown for {sx}")
+
+
+    func = guess_ext_or_raise if args.extension else guess_type_or_raise
+
+    for gtype in args.type:
+        try:
+            print(func(gtype))
+        except ValueError as ex:
+            sys.exit(str(ex))
 
 
 if __name__ == '__main__':
-    print(_main())
+    _main()

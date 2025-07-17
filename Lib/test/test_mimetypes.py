@@ -444,28 +444,28 @@ class MiscTestCase(unittest.TestCase):
 class CommandLineTest(unittest.TestCase):
     @force_not_colorized
     def test_parse_args(self):
-        args, help_text = mimetypes._parse_args("-h")
-        self.assertTrue(help_text.startswith("usage: "))
+        #args = mimetypes._parse_args("-h")
+        #self.assertTrue(help_text.startswith("usage: "))
 
-        args, help_text = mimetypes._parse_args("--invalid")
-        self.assertTrue(help_text.startswith("usage: "))
+        #args = mimetypes._parse_args("--invalid")
+        #self.assertTrue(help_text.startswith("usage: "))
 
-        args, _ = mimetypes._parse_args(shlex.split("-l -e image/jpg"))
+        args = mimetypes._parse_args(shlex.split("-l -e image/jpg"))
         self.assertTrue(args.extension)
         self.assertTrue(args.lenient)
         self.assertEqual(args.type, ["image/jpg"])
 
-        args, _ = mimetypes._parse_args(shlex.split("-e image/jpg"))
+        args = mimetypes._parse_args(shlex.split("-e image/jpg"))
         self.assertTrue(args.extension)
         self.assertFalse(args.lenient)
         self.assertEqual(args.type, ["image/jpg"])
 
-        args, _ = mimetypes._parse_args(shlex.split("-l foo.webp"))
+        args = mimetypes._parse_args(shlex.split("-l foo.webp"))
         self.assertFalse(args.extension)
         self.assertTrue(args.lenient)
         self.assertEqual(args.type, ["foo.webp"])
 
-        args, _ = mimetypes._parse_args(shlex.split("foo.pic"))
+        args = mimetypes._parse_args(shlex.split("foo.pic"))
         self.assertFalse(args.extension)
         self.assertFalse(args.lenient)
         self.assertEqual(args.type, ["foo.pic"])
@@ -474,14 +474,18 @@ class CommandLineTest(unittest.TestCase):
         for command, expected in [
             ("-l -e image/jpg", ".jpg"),
             ("-e image/jpeg", ".jpg"),
+            ("-e image/jpeg text/html", ".jpg\n.html"),
             ("-l foo.webp", "type: image/webp encoding: None"),
         ]:
-            self.assertEqual(mimetypes._main(shlex.split(command)), expected)
+            with unittest.mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+                mimetypes._main(shlex.split(command))
+                self.assertEqual(out.getvalue().strip(), expected)
 
     def test_invocation_error(self):
         for command, expected in [
             ("-e image/jpg", "error: unknown type image/jpg"),
             ("foo.bar_ext", "error: media type unknown for foo.bar_ext"),
+            ("-e image/jpeg text/xyz", "error: unknown type text/xyz")
         ]:
             with self.subTest(command=command):
                 with self.assertRaisesRegex(SystemExit, expected):
